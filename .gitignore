@@ -1,0 +1,8 @@
+# Ignore temporary processing files
+uploads/*
+!uploads/.gitkeep
+test_*.jpg
+*.log
+**/__pycache__/**
+*.pyc
+
