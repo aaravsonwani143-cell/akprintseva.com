@@ -19,19 +19,27 @@ import traceback
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 
-# Add backend service directories to sys.path
+# Look for services directory across possible deployment roots
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
+possible_roots = [
+    CURRENT_DIR,
+    os.path.abspath(os.path.join(CURRENT_DIR, '..')),
+    os.path.abspath(os.path.join(CURRENT_DIR, '..', '..')),
+    os.getcwd()
+]
 
-DOC_AI_DIR = os.path.join(PROJECT_ROOT, 'services', 'document-ai')
-PDF_DIR = os.path.join(PROJECT_ROOT, 'services', 'pdf')
-
-if DOC_AI_DIR not in sys.path:
-    sys.path.insert(0, DOC_AI_DIR)
-if PDF_DIR not in sys.path:
-    sys.path.insert(0, PDF_DIR)
+for r in possible_roots:
+    d = os.path.join(r, 'services', 'document-ai')
+    p = os.path.join(r, 'services', 'pdf')
+    if os.path.isdir(d):
+        if d not in sys.path:
+            sys.path.insert(0, d)
+        if p not in sys.path:
+            sys.path.insert(0, p)
+        break
 
 # Import protected engines safely
+IMPORT_ERROR = None
 try:
     import aadhaar_processor
     import doc_processor
@@ -40,7 +48,8 @@ try:
     import pdf_queue_processor
     SERVICES_LOADED = True
 except Exception as e:
-    print(f"[WARN] Some services failed to import on startup: {e}")
+    IMPORT_ERROR = f"{type(e).__name__}: {str(e)}"
+    print(f"[WARN] Some services failed to import on startup: {IMPORT_ERROR}")
     SERVICES_LOADED = False
 
 API_KEY = os.environ.get("API_KEY", "ak_sec_print_ai_2026")
@@ -97,7 +106,8 @@ class CloudAIRequestHandler(BaseHTTPRequestHandler):
                 "service": "AK Print Seva Cloud AI",
                 "version": "1.0.0",
                 "python_version": sys.version,
-                "services_loaded": SERVICES_LOADED
+                "services_loaded": SERVICES_LOADED,
+                "import_error": IMPORT_ERROR
             })
             return
 
